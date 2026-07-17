@@ -419,7 +419,7 @@ static void joypad_adc_check(struct input_polled_dev *poll_dev)
 		/* Read first joystick axis */
 		adcx->value = joypad_adc_read(joypad->amux, adcx);
 		if (!adcx->value) {
-			//dev_err(joypad->dev, "%s : saradc channels[%d]! adc->value : %d\n",__func__, nbtn, adc->value);
+			//dev_err(joypad->dev, "saradc channels[%d]! adc->value : %d\n", nbtn, adc->value);
 			continue;
 		}
 		adcx->value = adcx->value - adcx->cal;
@@ -427,7 +427,7 @@ static void joypad_adc_check(struct input_polled_dev *poll_dev)
 		/* Read second joystick axis */
 		adcy->value = joypad_adc_read(joypad->amux, adcy);
 		if (!adcy->value) {
-			//dev_err(joypad->dev, "%s : saradc channels[%d]! adc->value : %d\n",__func__, nbtn, adc->value);
+			//dev_err(joypad->dev, "saradc channels[%d]! adc->value : %d\n", nbtn, adc->value);
 			continue;
 		}
 		adcy->value = adcy->value - adcy->cal;
@@ -530,8 +530,7 @@ static void joypad_open(struct input_polled_dev *poll_dev)
 
 		adc->value = joypad_adc_read(joypad->amux, adc);
 		if (!adc->value) {
-			dev_err(joypad->dev, "%s : saradc channels[%d]!\n",
-				__func__, nbtn);
+			dev_err(joypad->dev, "saradc channels[%d]!\n", nbtn);
 			continue;
 		}
 		adc->cal = adc->value;
@@ -573,7 +572,7 @@ static int joypad_amux_setup(struct device *dev, struct joypad *joypad)
 	joypad->amux = devm_kzalloc(dev, sizeof(struct analog_mux),
 					GFP_KERNEL);
 	if (!joypad->amux) {
-		dev_err(dev, "%s amux devm_kzmalloc error!", __func__);
+		dev_err(dev, "amux devm_kzmalloc error!");
 		return -ENOMEM;
 	}
 	amux = joypad->amux;
@@ -639,7 +638,7 @@ static int joypad_adc_setup(struct device *dev, struct joypad *joypad)
 	joypad->adcs = devm_kzalloc(dev, joypad->amux_count *
 				sizeof(struct bt_adc), GFP_KERNEL);
 	if (!joypad->adcs) {
-		dev_err(dev, "%s devm_kzmalloc error!", __func__);
+		dev_err(dev, "devm_kzmalloc error!");
 		return -ENOMEM;
 	}
 
@@ -710,8 +709,7 @@ static int joypad_adc_setup(struct device *dev, struct joypad *joypad)
 					adc->tuning_n = ADC_TUNING_DEFAULT;
 				break;
 			default :
-				dev_err(dev, "%s amux count(%d) error!",
-					__func__, nbtn);
+				dev_err(dev, "amux count(%d) error!", nbtn);
 				return -EINVAL;
 		}
 		adc->amux_ch = channel_mapping[nbtn];
@@ -733,7 +731,7 @@ static int joypad_gpio_setup(struct device *dev, struct joypad *joypad)
 				sizeof(struct bt_gpio), GFP_KERNEL);
 
 	if (!joypad->gpios) {
-		dev_err(dev, "%s devm_kzmalloc error!", __func__);
+		dev_err(dev, "devm_kzmalloc error!");
 		return -ENOMEM;
 	}
 
@@ -888,14 +886,14 @@ static int joypad_input_setup(struct device *dev, struct joypad *joypad)
 				joypad->bt_adc_fuzz,
 				joypad->bt_adc_flat);
 		dev_info(dev,
-			"%s : SCALE = %d, ABS min = %d, max = %d,"
+			"SCALE = %d, ABS min = %d, max = %d,"
 			" fuzz = %d, flat = %d, deadzone = %d\n",
-			__func__, adc->scale, adc->min, adc->max,
+			adc->scale, adc->min, adc->max,
 			joypad->bt_adc_fuzz, joypad->bt_adc_flat,
 			joypad->bt_adc_deadzone);
 		dev_info(dev,
-			"%s : adc tuning_p = %d, adc_tuning_n = %d\n\n",
-			__func__, adc->tuning_p, adc->tuning_n);
+			"adc tuning_p = %d, adc_tuning_n = %d\n\n",
+			adc->tuning_p, adc->tuning_n);
 	}
 
 	/*
@@ -1264,8 +1262,8 @@ static int joypad_dt_parse(struct device *dev, struct joypad *joypad)
 	joypad->invert_absy = device_property_present(dev, "invert-absy");
 	joypad->invert_absrx = device_property_present(dev, "invert-absrx");
 	joypad->invert_absry = device_property_present(dev, "invert-absry");
-	dev_info(dev, "%s : invert-absx = %d, inveret-absy = %d, invert-absrx = %d, invert-absry = %d\n",
-		__func__, joypad->invert_absx, joypad->invert_absy, joypad->invert_absrx, joypad->invert_absry);
+	dev_info(dev, "invert-absx = %d, inveret-absy = %d, invert-absrx = %d, invert-absry = %d\n",
+		joypad->invert_absx, joypad->invert_absy, joypad->invert_absrx, joypad->invert_absry);
 
 	joypad->bt_gpio_count = device_get_child_node_count(dev);
 
@@ -1291,18 +1289,18 @@ static int joypad_dt_parse(struct device *dev, struct joypad *joypad)
 	if (error)
 		return error;
 
-	dev_info(dev, "%s : adc key cnt = %d, gpio key cnt = %d\n",
-			__func__, joypad->amux_count, joypad->bt_gpio_count);
+	dev_info(dev, "adc key cnt = %d, gpio key cnt = %d\n",
+			joypad->amux_count, joypad->bt_gpio_count);
 
 	joypad->has_rumble =
 		device_property_present(dev, "pwm-names");
 	if (joypad->has_rumble)
-		dev_info(dev, "%s : has rumble\n", __func__);
+		dev_info(dev, "has rumble\n");
 
 	joypad->use_miyoo_serial =
 		device_property_present(dev, "rocknix,use-miyoo-serial-joypad");
 	if (joypad->use_miyoo_serial) {
-		dev_info(dev, "%s : using Miyoo Serial Joypad logic\n", __func__);
+		dev_info(dev, "using Miyoo Serial Joypad logic\n");
 		/*
 		 * We'll define some default calibrations for raw [85..200]
 		 * from your original userland code, so that x_zero=130, etc.
@@ -1412,7 +1410,7 @@ static int joypad_probe(struct platform_device *pdev)
 		schedule_delayed_work(&joypad->miyoo_init_work, 10 * HZ);
 	}
 
-	dev_info(dev, "%s : probe success\n", __func__);
+	dev_info(dev, "probe success\n");
 	return 0;
 }
 

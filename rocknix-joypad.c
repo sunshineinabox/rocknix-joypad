@@ -143,8 +143,7 @@ static void joypad_adc_check(struct input_polled_dev *poll_dev)
 		/* Read first joystick axis */
 		adcx->value = joypad_adc_read(joypad, adcx);
 		if (!adcx->value) {
-			dev_err(joypad->dev, "%s : saradc channels[%d]!\n",
-				__func__, nbtn);
+			dev_err(joypad->dev, "saradc channels[%d]!\n", nbtn);
 			continue;
 		}
 		adcx->value = adcx->value - adcx->cal;
@@ -152,8 +151,7 @@ static void joypad_adc_check(struct input_polled_dev *poll_dev)
 		/* Read second joystick axis */
 		adcy->value = joypad_adc_read(joypad, adcy);
 		if (!adcy->value) {
-			dev_err(joypad->dev, "%s : saradc channels[%d]!\n",
-				__func__, nbtn + 1);
+			dev_err(joypad->dev, "saradc channels[%d]!\n", nbtn + 1);
 			continue;
 		}
 		adcy->value = adcy->value - adcy->cal;
@@ -231,13 +229,11 @@ static void joypad_open(struct input_polled_dev *poll_dev)
 
 		adc->value = joypad_adc_read(joypad, adc);
 		if (!adc->value) {
-			dev_err(joypad->dev, "%s : saradc channels[%d]!\n",
-				__func__, nbtn);
+			dev_err(joypad->dev, "saradc channels[%d]!\n", nbtn);
 			continue;
 		}
 		adc->cal = adc->value;
-		dev_info(joypad->dev, "%s : adc[%d] adc->cal = %d\n",
-			__func__, nbtn, adc->cal);
+		dev_info(joypad->dev, "adc[%d] adc->cal = %d\n", nbtn, adc->cal);
 	}
 	/* buttons status sync */
 	joypad_adc_check(poll_dev);
@@ -248,7 +244,7 @@ static void joypad_open(struct input_polled_dev *poll_dev)
 	joypad->enable = true;
 	mutex_unlock(&joypad->lock);
 
-	dev_info(joypad->dev, "%s : opened\n", __func__);
+	dev_info(joypad->dev, "opened\n");
 }
 
 /*----------------------------------------------------------------------------*/
@@ -261,7 +257,7 @@ static void joypad_close(struct input_polled_dev *poll_dev)
 	joypad->enable = false;
 	mutex_unlock(&joypad->lock);
 
-	dev_info(joypad->dev, "%s : closed\n", __func__);
+	dev_info(joypad->dev, "closed\n");
 }
 
 /*----------------------------------------------------------------------------*/
@@ -313,15 +309,14 @@ static int joypad_adc_setup(struct device *dev, struct joypad *joypad)
 
 	/* protect the arrays */
 	if (joypad->chan_count > 6) {
-		dev_err(dev, "%s io channel count(%d) error!",
-				__func__, joypad->chan_count);
+		dev_err(dev, "io channel count(%d) error!", joypad->chan_count);
 	};
 
 	/* adc button struct init */
 	joypad->adcs = devm_kzalloc(dev, joypad->chan_count *
 				sizeof(struct bt_adc), GFP_KERNEL);
 	if (!joypad->adcs) {
-		dev_err(dev, "%s devm_kzmalloc error!", __func__);
+		dev_err(dev, "devm_kzmalloc error!");
 		return -ENOMEM;
 	}
 
@@ -411,7 +406,7 @@ static int joypad_gpio_setup(struct device *dev, struct joypad *joypad)
 				sizeof(struct bt_gpio), GFP_KERNEL);
 
 	if (!joypad->gpios) {
-		dev_err(dev, "%s devm_kzmalloc error!", __func__);
+		dev_err(dev, "devm_kzmalloc error!");
 		return -ENOMEM;
 	}
 
@@ -499,14 +494,14 @@ static int joypad_input_setup(struct device *dev, struct joypad *joypad)
 				joypad->bt_adc_fuzz,
 				joypad->bt_adc_flat);
 		dev_info(dev,
-			"%s : axis %s: SCALE = %d, ABS min = %d, max = %d,"
+			"axis %s: SCALE = %d, ABS min = %d, max = %d,"
 			" fuzz = %d, flat = %d, deadzone = %d\n",
-			__func__, adc->axis, adc->scale, adc->min, adc->max,
+			adc->axis, adc->scale, adc->min, adc->max,
 			joypad->bt_adc_fuzz, joypad->bt_adc_flat,
 			joypad->bt_adc_deadzone);
 		dev_info(dev,
-			"%s : axis %s: adc tuning_p = %d, adc tuning_n = %d invert = %d\n",
-			__func__, adc->axis, adc->tuning_p, adc->tuning_n, adc->invert);
+			"axis %s: adc tuning_p = %d, adc tuning_n = %d invert = %d\n",
+			adc->axis, adc->tuning_p, adc->tuning_n, adc->invert);
 	}
 
 	/* GPIO key setup */
@@ -577,8 +572,8 @@ static int joypad_dt_parse(struct device *dev, struct joypad *joypad)
 	if (error)
 		return error;
 
-	dev_info(dev, "%s : adc key cnt = %d, gpio key cnt = %d\n",
-			__func__, joypad->chan_count, joypad->bt_gpio_count);
+	dev_info(dev, "adc key cnt = %d, gpio key cnt = %d\n",
+			joypad->chan_count, joypad->bt_gpio_count);
 
 	return error;
 }
@@ -612,7 +607,7 @@ static int joypad_probe(struct platform_device *pdev)
 		dev_err(dev, "input setup failed!(err = %d)\n", error);
 		return error;
 	}
-	dev_info(dev, "%s : probe success\n", __func__);
+	dev_info(dev, "probe success\n");
 	return 0;
 }
 
