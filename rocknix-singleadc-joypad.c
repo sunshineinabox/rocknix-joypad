@@ -738,23 +738,26 @@ static int joypad_gpio_setup(struct device *dev, struct joypad *joypad)
 	}
 
 	nbtn = 0;
+	// TODO: once we no longer support versions < 6.11,
+	// use for_each_child_of_node_scoped.
 	for_each_child_of_node(node, pp) {
 		struct bt_gpio *gpio = &joypad->gpios[nbtn++];
 
 		gpio->label = of_get_property(pp, "label", NULL);
 		gpio->desc = devm_fwnode_gpiod_get(dev, of_fwnode_handle(pp),
 			NULL, GPIOD_IN, gpio->label);
-
 		if (IS_ERR(gpio->desc)) {
 			int error = PTR_ERR(gpio->desc);
 			dev_err(dev,
 				"new Failed to request GPIO %s, error %d\n",
 				gpio->label, error);
+			of_node_put(pp);
 			return error;
 		}
 		if (of_property_read_u32(pp, "linux,code", &gpio->linux_code)) {
 			dev_err(dev, "Button without keycode: %s\n",
 				gpio->label);
+			of_node_put(pp);
 			return -EINVAL;
 		}
 		if (of_property_read_u32(pp, "linux,input-type",
