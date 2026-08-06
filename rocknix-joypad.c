@@ -11,11 +11,8 @@
 #include <linux/platform_device.h>
 #include <linux/iio/consumer.h>
 #include <linux/version.h>
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0))
-#include <linux/of_gpio.h>
-#else
-#include <linux/of_gpio_legacy.h>
-#endif
+#include <linux/gpio/consumer.h>
+#include <linux/of.h>
 #include "rocknix-joypad.h"
 
 /*----------------------------------------------------------------------------*/
@@ -53,16 +50,14 @@ struct bt_adc {
 struct bt_gpio {
 	/* GPIO Request label */
 	const char *label;
-	/* GPIO Number */
-	int num;
+	/* GPIO descriptor */
+	struct gpio_desc *desc;
 	/* report type */
 	int report_type;
 	/* report linux code */
 	int linux_code;
 	/* prev button value */
 	bool old_value;
-	/* button press level */
-	bool active_level;
 };
 
 struct joypad {
@@ -120,16 +115,12 @@ static void joypad_gpio_check(struct input_polled_dev *poll_dev)
 	for (nbtn = 0; nbtn < joypad->bt_gpio_count; nbtn++) {
 		struct bt_gpio *gpio = &joypad->gpios[nbtn];
 
-		if (gpio_get_value_cansleep(gpio->num) < 0) {
-			dev_err(joypad->dev, "failed to get gpio state\n");
-			continue;
-		}
-		value = gpio_get_value_cansleep(gpio->num);
+		value = gpiod_get_value_cansleep(gpio->desc);
 		if (value != gpio->old_value) {
 			input_event(poll_dev->input,
 				gpio->report_type,
 				gpio->linux_code,
-				(value == gpio->active_level) ? 1 : 0);
+				value);
 			gpio->old_value = value;
 		}
 	}
@@ -152,8 +143,7 @@ static void joypad_adc_check(struct input_polled_dev *poll_dev)
 		/* Read first joystick axis */
 		adcx->value = joypad_adc_read(joypad, adcx);
 		if (!adcx->value) {
-			dev_err(joypad->dev, "%s : saradc channels[%d]!\n",
-				__func__, nbtn);
+			dev_err(joypad->dev, "saradc channels[%d]!\n", nbtn);
 			continue;
 		}
 		adcx->value = adcx->value - adcx->cal;
@@ -161,8 +151,7 @@ static void joypad_adc_check(struct input_polled_dev *poll_dev)
 		/* Read second joystick axis */
 		adcy->value = joypad_adc_read(joypad, adcy);
 		if (!adcy->value) {
-			dev_err(joypad->dev, "%s : saradc channels[%d]!\n",
-				__func__, nbtn + 1);
+			dev_err(joypad->dev, "saradc channels[%d]!\n", nbtn + 1);
 			continue;
 		}
 		adcy->value = adcy->value - adcy->cal;
@@ -233,20 +222,18 @@ static void joypad_open(struct input_polled_dev *poll_dev)
 
 	for (nbtn = 0; nbtn < joypad->bt_gpio_count; nbtn++) {
 		struct bt_gpio *gpio = &joypad->gpios[nbtn];
-		gpio->old_value = gpio->active_level ? 0 : 1;
+		gpio->old_value = 0;
 	}
 	for (nbtn = 0; nbtn < joypad->chan_count; nbtn++) {
 		struct bt_adc *adc = &joypad->adcs[nbtn];
 
 		adc->value = joypad_adc_read(joypad, adc);
 		if (!adc->value) {
-			dev_err(joypad->dev, "%s : saradc channels[%d]!\n",
-				__func__, nbtn);
+			dev_err(joypad->dev, "saradc channels[%d]!\n", nbtn);
 			continue;
 		}
 		adc->cal = adc->value;
-		dev_info(joypad->dev, "%s : adc[%d] adc->cal = %d\n",
-			__func__, nbtn, adc->cal);
+		dev_info(joypad->dev, "adc[%d] adc->cal = %d\n", nbtn, adc->cal);
 	}
 	/* buttons status sync */
 	joypad_adc_check(poll_dev);
@@ -257,7 +244,7 @@ static void joypad_open(struct input_polled_dev *poll_dev)
 	joypad->enable = true;
 	mutex_unlock(&joypad->lock);
 
-	dev_info(joypad->dev, "%s : opened\n", __func__);
+	dev_info(joypad->dev, "opened\n");
 }
 
 /*----------------------------------------------------------------------------*/
@@ -270,7 +257,7 @@ static void joypad_close(struct input_polled_dev *poll_dev)
 	joypad->enable = false;
 	mutex_unlock(&joypad->lock);
 
-	dev_info(joypad->dev, "%s : closed\n", __func__);
+	dev_info(joypad->dev, "closed\n");
 }
 
 /*----------------------------------------------------------------------------*/
@@ -322,15 +309,14 @@ static int joypad_adc_setup(struct device *dev, struct joypad *joypad)
 
 	/* protect the arrays */
 	if (joypad->chan_count > 6) {
-		dev_err(dev, "%s io channel count(%d) error!",
-				__func__, joypad->chan_count);
+		dev_err(dev, "io channel count(%d) error!", joypad->chan_count);
 	};
 
 	/* adc button struct init */
 	joypad->adcs = devm_kzalloc(dev, joypad->chan_count *
 				sizeof(struct bt_adc), GFP_KERNEL);
 	if (!joypad->adcs) {
-		dev_err(dev, "%s devm_kzmalloc error!", __func__);
+		dev_err(dev, "devm_kzmalloc error!");
 		return -ENOMEM;
 	}
 
@@ -420,42 +406,32 @@ static int joypad_gpio_setup(struct device *dev, struct joypad *joypad)
 				sizeof(struct bt_gpio), GFP_KERNEL);
 
 	if (!joypad->gpios) {
-		dev_err(dev, "%s devm_kzmalloc error!", __func__);
+		dev_err(dev, "devm_kzmalloc error!");
 		return -ENOMEM;
 	}
 
 	nbtn = 0;
+	// TODO: once we no longer support versions < 6.11,
+	// use for_each_child_of_node_scoped.
 	for_each_child_of_node(node, pp) {
-		enum of_gpio_flags flags;
 		struct bt_gpio *gpio = &joypad->gpios[nbtn++];
-		int error;
-
-		gpio->num = of_get_gpio_flags(pp, 0, &flags);
-		if (gpio->num < 0) {
-			error = gpio->num;
-			dev_err(dev, "Failed to get gpio flags, error: %d\n",
-				error);
-			return error;
-		}
-
-		/* gpio active level(key press level) */
-		gpio->active_level = (flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
 
 		gpio->label = of_get_property(pp, "label", NULL);
 
-		if (gpio_is_valid(gpio->num)) {
-			error = devm_gpio_request_one(dev, gpio->num,
-						      GPIOF_IN, gpio->label);
-			if (error < 0) {
-				dev_err(dev,
-					"Failed to request GPIO %d, error %d\n",
-					gpio->num, error);
-				return error;
-			}
+		gpio->desc = devm_fwnode_gpiod_get(dev, of_fwnode_handle(pp),
+                        NULL, GPIOD_IN, gpio->label);
+		if (IS_ERR(gpio->desc)) {
+			int error = PTR_ERR(gpio->desc);
+			dev_err(dev,
+				"Failed to request GPIO %s, error %d\n",
+				gpio->label, error);
+			of_node_put(pp);
+			return error;
 		}
 		if (of_property_read_u32(pp, "linux,code", &gpio->linux_code)) {
-			dev_err(dev, "Button without keycode: 0x%x\n",
-				gpio->num);
+			dev_err(dev, "Button without keycode: %s\n",
+				gpio->label);
+			of_node_put(pp);
 			return -EINVAL;
 		}
 		if (of_property_read_u32(pp, "linux,input-type",
@@ -518,14 +494,14 @@ static int joypad_input_setup(struct device *dev, struct joypad *joypad)
 				joypad->bt_adc_fuzz,
 				joypad->bt_adc_flat);
 		dev_info(dev,
-			"%s : axis %s: SCALE = %d, ABS min = %d, max = %d,"
+			"axis %s: SCALE = %d, ABS min = %d, max = %d,"
 			" fuzz = %d, flat = %d, deadzone = %d\n",
-			__func__, adc->axis, adc->scale, adc->min, adc->max,
+			adc->axis, adc->scale, adc->min, adc->max,
 			joypad->bt_adc_fuzz, joypad->bt_adc_flat,
 			joypad->bt_adc_deadzone);
 		dev_info(dev,
-			"%s : axis %s: adc tuning_p = %d, adc tuning_n = %d invert = %d\n",
-			__func__, adc->axis, adc->tuning_p, adc->tuning_n, adc->invert);
+			"axis %s: adc tuning_p = %d, adc tuning_n = %d invert = %d\n",
+			adc->axis, adc->tuning_p, adc->tuning_n, adc->invert);
 	}
 
 	/* GPIO key setup */
@@ -596,8 +572,8 @@ static int joypad_dt_parse(struct device *dev, struct joypad *joypad)
 	if (error)
 		return error;
 
-	dev_info(dev, "%s : adc key cnt = %d, gpio key cnt = %d\n",
-			__func__, joypad->chan_count, joypad->bt_gpio_count);
+	dev_info(dev, "adc key cnt = %d, gpio key cnt = %d\n",
+			joypad->chan_count, joypad->bt_gpio_count);
 
 	return error;
 }
@@ -631,7 +607,7 @@ static int joypad_probe(struct platform_device *pdev)
 		dev_err(dev, "input setup failed!(err = %d)\n", error);
 		return error;
 	}
-	dev_info(dev, "%s : probe success\n", __func__);
+	dev_info(dev, "probe success\n");
 	return 0;
 }
 
