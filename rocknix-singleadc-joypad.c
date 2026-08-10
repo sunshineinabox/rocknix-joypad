@@ -286,20 +286,20 @@ static int joypad_amux_select(struct analog_mux *amux, int channel)
 
 	switch(channel) {
 		case 0:	/* EVENT (ABS_RY) */
-			gpiod_set_value_cansleep(amux->sel_a_gpio, 0);
-			gpiod_set_value_cansleep(amux->sel_b_gpio, 0);
+			gpiod_set_value_cansleep(amux->sel_a_gpio, 1);
+			gpiod_set_value_cansleep(amux->sel_b_gpio, 1);
 			break;
 		case 1:	/* EVENT (ABS_RX) */
-			gpiod_set_value_cansleep(amux->sel_a_gpio, 0);
-			gpiod_set_value_cansleep(amux->sel_b_gpio, 1);
-			break;
-		case 2:	/* EVENT (ABS_Y) */
 			gpiod_set_value_cansleep(amux->sel_a_gpio, 1);
 			gpiod_set_value_cansleep(amux->sel_b_gpio, 0);
 			break;
-		case 3:	/* EVENT (ABS_X) */
-			gpiod_set_value_cansleep(amux->sel_a_gpio, 1);
+		case 2:	/* EVENT (ABS_Y) */
+			gpiod_set_value_cansleep(amux->sel_a_gpio, 0);
 			gpiod_set_value_cansleep(amux->sel_b_gpio, 1);
+			break;
+		case 3:	/* EVENT (ABS_X) */
+			gpiod_set_value_cansleep(amux->sel_a_gpio, 0);
+			gpiod_set_value_cansleep(amux->sel_b_gpio, 0);
 			break;
 		default:
 			/* amux disable */
