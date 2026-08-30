@@ -321,7 +321,8 @@ static int joypad_adc_read(struct analog_mux *amux, struct bt_adc *adc)
 	if (joypad_amux_select(amux, adc->amux_ch))
 		return 0;
 
-	iio_read_channel_raw(amux->iio_ch, &value);
+	if (iio_read_channel_raw(amux->iio_ch, &value) < 0)
+		return 0;
 
 	value *= adc->scale;
 
